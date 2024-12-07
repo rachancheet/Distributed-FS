@@ -12,6 +12,22 @@ type peer struct {
 	Port uint16
 	Name string
 }
+type Comms struct {
+	bhai           peer
+	name           string
+	ip             string
+	motherShip     net.Conn
+	Listener       net.Listener
+	portAddr       uint16
+	mothershipaddr string
+}
+
+type Instruct struct {
+	Instruction uint16
+	Asker_addr  string
+	Asked_file  string
+	File_data   []byte
+}
 
 func GetOutboundIP() net.IP {
 	conn, err := net.Dial("udp", "8.8.8.8:80")
@@ -24,9 +40,9 @@ func GetOutboundIP() net.IP {
 
 	return localAddr.IP
 }
-func Callhome() net.Conn {
+func (C Comms) Callhome() net.Conn {
 
-	motherShip, err := net.Dial("tcp", ":8000")
+	motherShip, err := net.Dial("tcp", C.mothershipaddr)
 	if err != nil {
 		log.Fatal("Mother-ship unreachable")
 	}
@@ -58,18 +74,9 @@ func RecvLoop(Listener net.Listener) {
 
 }
 
-type Comms struct {
-	bhai       peer
-	name       string
-	ip         string
-	motherShip net.Conn
-	Listener   net.Listener
-	portAddr   uint16
-}
-
 func (C *Comms) EstablishComms() {
 
-	C.motherShip = Callhome()
+	C.motherShip = C.Callhome()
 
 	C.Listener, C.portAddr = Listening()
 	fmt.Print("listener info ", C.portAddr, "\n Done \n")
@@ -109,7 +116,7 @@ func (C *Comms) listenloop(F Fileserver) {
 		var instruct_buf Instruct
 		con, err := C.Listener.Accept()
 		if err != nil {
-			log.Fatal("Error Accepting")
+			log.Fatal("Error Accepting Instruction From MotherShip")
 		}
 		recvinstruct(con, &instruct_buf)
 		fmt.Println("Recv: ", instruct_buf)
@@ -123,9 +130,7 @@ func (C *Comms) listenloop(F Fileserver) {
 				C.sendFile(instruct_buf, F)
 			} else {
 				fmt.Println("Didn't find asking Bhai")
-				if C.bhai.Name != "testing" {
-					C.askBhai(instruct_buf)
-				}
+				C.askBhai(instruct_buf)
 			}
 
 		} else if instruct_buf.Instruction == 1 {
@@ -133,7 +138,7 @@ func (C *Comms) listenloop(F Fileserver) {
 			fmt.Println("Recived file", instruct_buf.Asked_file, " from ", instruct_buf.Asker_addr)
 			F.SaveFile(instruct_buf.Asked_file, instruct_buf.File_data)
 		} else {
-			fmt.Print("Unknown Instruct", instruct_buf)
+			fmt.Println("Unknown Instruct", instruct_buf)
 		}
 
 	}
@@ -197,10 +202,10 @@ func (C Comms) Close() {
 	C.Listener.Close()
 
 }
-func NewComms(name string) Comms {
+func NewComms(name string, shipaddr string) Comms {
 	// var a Comms
 	// a.name = name
-	return Comms{name: name}
+	return Comms{name: name, shipaddr: shipaddr}
 }
 func sendpeerinfo(con net.Conn, p peer) {
 	if err := json.NewEncoder(con).Encode(p); err != nil {
@@ -214,13 +219,6 @@ func recvpeerinfo(con net.Conn, p *peer) {
 		log.Fatal("Unable to decode Mother's msg")
 	}
 
-}
-
-type Instruct struct {
-	Instruction uint16
-	Asker_addr  string
-	Asked_file  string
-	File_data   []byte
 }
 
 func sendinstruct(con net.Conn, p Instruct) {

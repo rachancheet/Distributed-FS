@@ -16,8 +16,10 @@ type Fileserver struct {
 func NewFileserver(path string) Fileserver {
 	_, err := os.Stat(path)
 	if err != nil {
-		log.Fatal("Path doesn't exist")
-		// return Fileserver{}, errors.New("NOT valid Path")
+		mydir, _ := os.Getwd()
+		log.Println("Path doesn't exist Creating Seed_folder in Current Dir: ", mydir)
+		os.Mkdir("Seed_Folder", 0777)
+		return Fileserver{path: "./Seed_Folder"}
 	}
 	return Fileserver{path: path}
 }

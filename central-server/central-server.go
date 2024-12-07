@@ -23,25 +23,31 @@ func main() {
 	for {
 		con, err := listener.Accept()
 		if err != nil {
-			log.Fatal("Error Accepting")
+			log.Println("Error Accepting")
+			con.Close()
+			continue
 		}
 		var p1 peer
 		if err = json.NewDecoder(con).Decode(&p1); err != nil {
-			log.Fatal("Unable to decode Child's msg")
+			log.Println("Unable to decode Child's msg")
+			con.Close()
+			continue
 		}
 		fmt.Println(p1)
 		peers = append(peers, p1)
 		if len(peers) == 1 {
-			send(con, peer{Name: "testing"})
+			sendpeerinfo(con, peer{Name: "testing"})
 		} else {
-			send(con, peers[0])
+			sendpeerinfo(con, peers[len(peers)-2])
 		}
 		// os.Exit(1)
+		con.Close()
 
 	}
 }
-func send(con net.Conn, p peer) {
+func sendpeerinfo(con net.Conn, p peer) {
 	if err := json.NewEncoder(con).Encode(p); err != nil {
-		log.Fatal("Error occurred while sending peer info to child")
+		log.Println("Error occurred while sending peer info to child")
+		return
 	}
 }
